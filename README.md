@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Clinic Agent
 
-## Getting Started
+Clinic operations dashboard and a labeled patient chat demo. The frontend talks to the existing Express API in `../ai-clinic-agent`. Patient simulation is not connected to WhatsApp.
 
-First, run the development server:
+## What you can do
+
+- Register a clinic owner, sign in, and update the clinic profile.
+- Add services and prices, staff, and a seven-day working schedule.
+- Check real availability, create a pending appointment, and move it through confirmed, cancelled, completed, or no-show.
+- Open the patient simulator, chat with the AI receptionist, choose a returned slot, consent to a hold, and confirm it. Records are stored in PostgreSQL.
+
+Pending holds that pass `confirmationExpiresAt` are shown as expired. The backend expiry job cancels them.
+
+## Prerequisites
+
+- Node.js 22
+- PostgreSQL
+- A Gemini API key if you want the receptionist to reply (`GEMINI_API_KEY` on the backend)
+
+## Backend
+
+From `ai-clinic-agent`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Set `DATABASE_URL`, `JWT_SECRET`, and `GEMINI_API_KEY` in `.env`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npx prisma generate
+npx prisma migrate dev
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The API listens on `http://localhost:5000`. `GET /health` returns `{ "status": "ok" }`.
 
-## Learn More
+## Frontend
 
-To learn more about Next.js, take a look at the following resources:
+From `ai-clinic-agent-fe`:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cp .env.example .env.local
+npm install
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open `http://localhost:3000`.
 
-## Deploy on Vercel
+`NEXT_PUBLIC_API_URL` must point at the backend. The dashboard stores the JWT from `POST /api/auth/login` or `POST /api/auth/register` and sends it as `Authorization: Bearer`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Suggested check
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Register a clinic.
+2. Save working hours, one service, and one staff member.
+3. Create a pending appointment from the dashboard and confirm it.
+4. Open the patient simulator, send a message, show slots for that service, consent to a booking, then confirm the hold.
+
+The simulator calls:
+
+- `GET /api/simulator/clinics`
+- `GET /api/simulator/clinics/:clinicId`
+- `POST /api/simulator/clinics/:clinicId/conversations`
+- `POST /api/simulator/clinics/:clinicId/messages`
+- `GET /api/simulator/clinics/:clinicId/availability`
+- `POST /api/simulator/conversations/:conversationId/appointments`
+- `POST /api/simulator/conversations/:conversationId/appointments/:appointmentId/confirm`
+
+Clinic, patient, staff, and appointment IDs sent by the browser are checked again on the server against the active clinic or the simulator conversation.
